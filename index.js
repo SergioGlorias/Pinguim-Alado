@@ -6,7 +6,7 @@ const
 //Criar o o sistema do bot
 const client = new Discord.Client({ 
     ws: {
-        intents: [ /* Inteções ao usar o codigo ao discord */
+        intents: [ /* Inteções ao usar o codigo ao discord*/ 
             "DIRECT_MESSAGES",          //Intenção de enviar mensagens na DM das pessoas
             "DIRECT_MESSAGE_REACTIONS", //Intenção de reagir mensagens na DM das pessoas
             "GUILDS",                   //Intenção de mexer no servidor de discord
@@ -20,50 +20,44 @@ const client = new Discord.Client({
 
 /* configuração para ativar os comandos */
 global.commads = {} //Variavel Global para guardar comandos
+global.aliase = new Map()
 
-const
-    linkFileCommads = [],           //Varialvel que guarda camonhos relativos dos comandos
-    nameDirCommads = "./commads/",  //variavel com o camingo inicial da pasta de comandos 
-    commads = fs.readdirSync(nameDirCommads, {withFileTypes: true}) //ler a pasta de comandos 
-commads.forEach(async (file) => {   //verificar o que tem lá dentro 
-    if (file.isDirectory) {         // verificar se é 1 uma pasta
-        const nameDir = nameDirCommads + `${file.name}/` //se for pasta criar 1 caminho delativo da pasta
-        const dir = fs.readdirSync(nameDir, {withFileTypes: true})  //ler essa pasta
-        dir.forEach(async (file) => {   //verificar a pasta
-            if (file.isFile && file.name.split(".").slice(-1)[0] === "js") { //verifica se é um arquivo e se é .js 
-                linkFileCommads.push({  //adcionar ao caminho realivo ao array
-                    name:file.name.split(".")[0],   //nome do arquivo
-                    link:nameDir + file.name        //link relativo 
-                })
+const nameDirCommads = "./commads/"  //variavel com o camingo inicial da pasta de comandos 
+
+fs.readdirSync(nameDirCommads, {withFileTypes: true}).forEach(async (file) => { //verificar o que tem lá dentro 
+    let arquivo = file
+    let nameDir = nameDirCommads
+    const files = []
+
+    if (arquivo.isDirectory()) {         // verificar se é 1 uma pasta
+        nameDir = nameDir + `${arquivo.name}/` //se for pasta criar 1 caminho delativo da pasta
+        fs.readdirSync(nameDir, {withFileTypes: true}).forEach((file) => files.push(file))
+    } else files.push(arquivo)
+
+    files.forEach(async (file) => {
+        if (file.isFile() && file.name.split(".").slice(-1)[0] === "js") {
+            try {
+                let cmd = require(nameDir + file.name)
+                commads[cmd.help.name] = cmd
+                for (const i of cmd.help.aliase) {
+                    aliase.set(i, cmd.help.name)
+                }
+                console.log(`Comando ${cmd.help.name} fui iniciado com sucesso`)
+            } catch (err) {
+                console.error(`Falha ao ler o comando ${file.name}`)
             }
-        })
-    }
-    if (file.isFile && file.name.split(".").slice(-1)[0] === "js") {
-        linkFileCommads.push({ //adcionar ao caminho realivo ao array
-            name: file.name.split(".")[0], //nome do arquivo
-            link: nameDirCommads + file.name //link relativo 
-        })
-    }
-})
-
-linkFileCommads.forEach(async (link) => { //ligar o comandos que foram recolidos!!
-    try {
-        commads[link.name] = require(link.link) 
-        console.log(`Comando ${link.name} inicado com sucesso!!`)
-    } catch (err) {
-        console.error(`Falha ao iniciar o comando: ${link.name}`, err)
-    }
+        }
+    })
 })
 /* ------------------------------------------------------ */
 
 
 /* registrar o eventos */
-const events = fs.readdirSync('./events/')          //ler a pasta eventos
-events.forEach(async (file) => {                    //vericar que tem dentro
-    if (file.split('.').slice(-1)[0] === 'js') {    //verificar se o arquivo termina em .js
-        const name = file.split('.')[0]             //obter o nome do evento
-        const run = require(`./events/${file}`)     //fazer require do arquivo
-        client.on(name, run.bind(null, client))     //iniciar o evento 
+fs.readdirSync('./events/', {withFileTypes: true}).forEach((file) => {                                            //vericar que tem dentro
+    if (file.isFile && file.name.split('.').slice(-1)[0] === 'js') {                            //verificar se o arquivo termina em .js
+        const name = file.name.split('.')[0]                                     //obter o nome do evento
+        const run = require(`./events/${file.name}`)                             //fazer require do arquivo
+        client.on(name, run.bind(null, client))                             //iniciar o evento 
     }
 })
 /* ------------------------------------------------------ */
